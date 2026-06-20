@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.database import Base
@@ -15,6 +15,10 @@ class Role(str, enum.Enum):
 
 class Conversation(Base):
     __tablename__ = "conversations"
+    __table_args__ = (
+        Index("ix_conversations_created_at", "created_at"),
+        Index("ix_conversations_user_id", "user_id"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
@@ -23,16 +27,26 @@ class Conversation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    user: Mapped["User | None"] = relationship(  # type: ignore[name-defined]
+        "User", back_populates="conversations", lazy="raise"
+    )
     messages: Mapped[list["Message"]] = relationship(
         "Message",
         back_populates="conversation",
         cascade="all, delete-orphan",
         order_by="Message.created_at",
+        lazy="raise",
     )
 
 
 class Message(Base):
     __tablename__ = "messages"
+    __table_args__ = (
+        Index("ix_messages_conversation_id", "conversation_id"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())

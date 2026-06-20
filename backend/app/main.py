@@ -7,10 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .api.v1.router import api_v1_router
 from .core.config import get_settings
 from .core.database import init_db
 from .core.exceptions import register_exception_handlers
+from .models import conversation, user  # noqa: F401 — register all models before router imports
+from .api.v1.router import api_v1_router
 
 _APP_DIR = Path(__file__).parent
 

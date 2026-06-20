@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # Answer cache
     answer_cache_size: int = 256
 
+    # Auth / JWT
+    secret_key: str = "change-this-in-production-use-a-long-random-string"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+
     # MLflow
     mlflow_tracking_uri: str = "http://localhost:5000"
 

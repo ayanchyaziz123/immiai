@@ -43,7 +43,6 @@
         {% endfor %}
       </select>
 
-      <!-- Drop zone -->
       <input type="file" id="file-input" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" class="hidden">
       <div class="upload-zone" id="upload-zone">
         <div class="upload-zone-icon">
@@ -83,6 +82,25 @@
         {% for q in quick_questions %}
         <button class="quick-btn" data-question="{{ q }}">{{ q }}</button>
         {% endfor %}
+      </div>
+    </div>
+
+    <!-- Conversation history (shown for signed-in users) -->
+    <div class="sidebar-section hidden" id="history-section">
+      <p class="sidebar-label">
+        Recent Conversations
+        <button class="new-chat-btn" id="new-chat-btn" title="New conversation">+</button>
+      </p>
+      <div class="history-list" id="history-list">
+        <p class="history-empty">No conversations yet.</p>
+      </div>
+    </div>
+
+    <!-- Guest sign-in nudge (shown for guests) -->
+    <div class="sidebar-section" id="guest-nudge">
+      <div class="guest-nudge">
+        <p>Sign in to save your conversation history across sessions.</p>
+        <button class="nudge-btn" onclick="openAuthModal('login')">Sign in free</button>
       </div>
     </div>
 

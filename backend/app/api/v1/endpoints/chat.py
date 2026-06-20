@@ -1,9 +1,10 @@
+import asyncio
 import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....core.dependencies import get_db
+from ....core.dependencies import get_db, get_optional_user
 from ....core.exceptions import NotFoundError
 from ....models.conversation import Role
 from ....repositories.conversation_repository import ConversationRepository
@@ -18,30 +19,32 @@ _chat_service = ChatService()
 async def ask_question(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_optional_user),
 ):
     repo = ConversationRepository(db)
+    user_id = current_user.id if current_user else None
 
     conversation = await repo.get_or_create(
         conversation_id=request.conversation_id,
         title=request.question[:80],
+        user_id=user_id,
     )
-
     await repo.add_message(conversation.id, Role.user, request.question)
 
     t0 = time.time()
-    answer, model_version = _chat_service.get_answer(
-        question      = request.question,
-        language      = request.language,
-        visa_type     = request.visa_type,
-        document_type = request.document_type,
-        category      = request.category,
-        document_text = request.document_text or "",
+    answer, model_version = await asyncio.to_thread(
+        _chat_service.get_answer,
+        request.question,
+        request.language,
+        request.visa_type,
+        request.document_type,
+        request.category,
+        request.document_text or "",
     )
     elapsed_ms = int((time.time() - t0) * 1000)
 
     assistant_msg = await repo.add_message(conversation.id, Role.assistant, answer)
     await db.commit()
-    await db.refresh(assistant_msg)
 
     return ChatResponse(
         answer             = answer,
@@ -53,9 +56,13 @@ async def ask_question(
 
 
 @router.get("/conversations", response_model=list[ConversationOut])
-async def list_conversations(db: AsyncSession = Depends(get_db)):
+async def list_conversations(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_optional_user),
+):
     repo = ConversationRepository(db)
-    return await repo.list_recent()
+    user_id = current_user.id if current_user else None
+    return await repo.list_recent(user_id=user_id)
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationOut)

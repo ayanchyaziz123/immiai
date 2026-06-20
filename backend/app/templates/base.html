@@ -11,6 +11,8 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+
+  <!-- ── Navbar ──────────────────────────────────────────────────── -->
   <nav class="navbar">
     <a href="/" class="brand">
       <div class="brand-logo">🛡️</div>
@@ -26,14 +28,84 @@
         <span class="status-dot"></span>
         <span id="status-text">Connecting…</span>
       </div>
+
+      <!-- Guest state -->
+      <button class="nav-signin-btn hidden" id="nav-signin-btn">Sign in</button>
+
+      <!-- Auth state -->
+      <div class="nav-user hidden" id="nav-user">
+        <div class="nav-avatar" id="nav-avatar">U</div>
+        <span class="nav-username" id="nav-username"></span>
+        <button class="nav-signout-btn" id="nav-signout-btn">Sign out</button>
+      </div>
     </div>
   </nav>
+
+  <!-- ── Auth modal ─────────────────────────────────────────────── -->
+  <div class="auth-overlay hidden" id="auth-overlay">
+    <div class="auth-modal">
+      <button class="auth-close" id="auth-close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <div class="auth-brand">
+        <div class="auth-brand-icon">🛡️</div>
+        <h2>Immigration AI</h2>
+        <p>Sign in to save your conversation history</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Sign in</button>
+        <button class="auth-tab" data-tab="register">Create account</button>
+      </div>
+
+      <!-- Login form -->
+      <form id="login-form" class="auth-form">
+        <div class="form-field">
+          <label class="form-label">Email</label>
+          <input class="form-input" type="email" id="login-email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Password</label>
+          <input class="form-input" type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <div class="auth-error hidden" id="login-error"></div>
+        <button class="auth-submit" type="submit" id="login-submit">Sign in</button>
+      </form>
+
+      <!-- Register form -->
+      <form id="register-form" class="auth-form hidden">
+        <div class="form-field">
+          <label class="form-label">Full name <span class="form-optional">optional</span></label>
+          <input class="form-input" type="text" id="reg-name" placeholder="Your name" autocomplete="name" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Email</label>
+          <input class="form-input" type="email" id="reg-email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Password</label>
+          <input class="form-input" type="password" id="reg-password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password" />
+        </div>
+        <div class="auth-error hidden" id="reg-error"></div>
+        <button class="auth-submit" type="submit" id="reg-submit">Create account</button>
+      </form>
+
+      <p class="auth-footer">
+        Your data is never sold or shared. For general information only.
+      </p>
+    </div>
+  </div>
 
   <main class="main-content">
     {% block content %}{% endblock %}
   </main>
 
   <script>
+    // ── Health check ──────────────────────────────────────────────
     async function checkHealth() {
       const badge = document.getElementById('status-badge');
       const text  = document.getElementById('status-text');
@@ -51,7 +123,155 @@
         text.textContent = 'Offline';
       }
     }
-    checkHealth();
+
+    // ── Auth state ────────────────────────────────────────────────
+    let _currentUser = null;
+
+    async function loadAuthState() {
+      try {
+        const res = await fetch('/api/v1/auth/me');
+        if (res.ok) {
+          _currentUser = (await res.json());
+          showUserNav(_currentUser);
+          document.dispatchEvent(new CustomEvent('auth:ready', { detail: _currentUser }));
+          return;
+        }
+        // Try refreshing the token
+        const refresh = await fetch('/api/v1/auth/refresh', { method: 'POST' });
+        if (refresh.ok) {
+          const data = await refresh.json();
+          _currentUser = data.user;
+          showUserNav(_currentUser);
+          document.dispatchEvent(new CustomEvent('auth:ready', { detail: _currentUser }));
+          return;
+        }
+      } catch {}
+      _currentUser = null;
+      showGuestNav();
+      document.dispatchEvent(new CustomEvent('auth:ready', { detail: null }));
+    }
+
+    function showUserNav(user) {
+      document.getElementById('nav-signin-btn').classList.add('hidden');
+      const navUser = document.getElementById('nav-user');
+      navUser.classList.remove('hidden');
+      const initials = (user.full_name || user.email || 'U').slice(0, 1).toUpperCase();
+      document.getElementById('nav-avatar').textContent = initials;
+      document.getElementById('nav-username').textContent = user.full_name || user.email.split('@')[0];
+    }
+
+    function showGuestNav() {
+      document.getElementById('nav-user').classList.add('hidden');
+      document.getElementById('nav-signin-btn').classList.remove('hidden');
+    }
+
+    // ── Modal open/close ──────────────────────────────────────────
+    function openAuthModal(tab) {
+      document.getElementById('auth-overlay').classList.remove('hidden');
+      if (tab) switchTab(tab);
+    }
+    function closeAuthModal() {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      clearAuthErrors();
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+    }
+
+    function clearAuthErrors() {
+      ['login-error','reg-error'].forEach(id => {
+        const el = document.getElementById(id);
+        el.textContent = ''; el.classList.add('hidden');
+      });
+    }
+
+    // ── Sign out ──────────────────────────────────────────────────
+    async function signOut() {
+      await fetch('/api/v1/auth/logout', { method: 'POST' });
+      _currentUser = null;
+      showGuestNav();
+      document.dispatchEvent(new CustomEvent('auth:signout'));
+      window.location.reload();
+    }
+
+    // ── Wire up events ────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      checkHealth();
+      loadAuthState();
+
+      document.getElementById('nav-signin-btn').addEventListener('click', () => openAuthModal('login'));
+      document.getElementById('auth-close').addEventListener('click', closeAuthModal);
+      document.getElementById('auth-overlay').addEventListener('click', e => {
+        if (e.target === document.getElementById('auth-overlay')) closeAuthModal();
+      });
+      document.getElementById('nav-signout-btn').addEventListener('click', signOut);
+
+      document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+      });
+
+      // Login submit
+      document.getElementById('login-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = document.getElementById('login-submit');
+        btn.disabled = true; btn.textContent = 'Signing in…';
+        const errEl = document.getElementById('login-error');
+        errEl.classList.add('hidden');
+        try {
+          const res = await fetch('/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email:    document.getElementById('login-email').value,
+              password: document.getElementById('login-password').value,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'Login failed');
+          _currentUser = data.user;
+          showUserNav(data.user);
+          closeAuthModal();
+          document.dispatchEvent(new CustomEvent('auth:login', { detail: data.user }));
+        } catch (err) {
+          errEl.textContent = err.message; errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Sign in';
+        }
+      });
+
+      // Register submit
+      document.getElementById('register-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = document.getElementById('reg-submit');
+        btn.disabled = true; btn.textContent = 'Creating account…';
+        const errEl = document.getElementById('reg-error');
+        errEl.classList.add('hidden');
+        try {
+          const res = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email:     document.getElementById('reg-email').value,
+              password:  document.getElementById('reg-password').value,
+              full_name: document.getElementById('reg-name').value || null,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'Registration failed');
+          _currentUser = data.user;
+          showUserNav(data.user);
+          closeAuthModal();
+          document.dispatchEvent(new CustomEvent('auth:login', { detail: data.user }));
+        } catch (err) {
+          errEl.textContent = err.message; errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Create account';
+        }
+      });
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

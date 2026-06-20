@@ -20,18 +20,18 @@ class ConversationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def create(self, title: str) -> Conversation:
-        conversation = Conversation(title=title)
+    async def create(self, title: str, user_id: str | None = None) -> Conversation:
+        conversation = Conversation(title=title, user_id=user_id)
         self.db.add(conversation)
         await self.db.flush()
         return conversation
 
-    async def get_or_create(self, conversation_id: str | None, title: str) -> Conversation:
+    async def get_or_create(self, conversation_id: str | None, title: str, user_id: str | None = None) -> Conversation:
         if conversation_id:
             existing = await self.get_by_id(conversation_id)
             if existing:
                 return existing
-        return await self.create(title)
+        return await self.create(title, user_id=user_id)
 
     async def add_message(
         self, conversation_id: str, role: Role, content: str
@@ -40,13 +40,18 @@ class ConversationRepository:
         self.db.add(message)
         return message
 
-    async def list_recent(self, limit: int = 50) -> list[Conversation]:
-        result = await self.db.execute(
+    async def list_recent(self, user_id: str | None = None, limit: int = 20) -> list[Conversation]:
+        q = (
             select(Conversation)
-            .options(_WITHOUT_MESSAGES)   # metadata only; callers use id to fetch messages
+            .options(_WITHOUT_MESSAGES)
             .order_by(Conversation.created_at.desc())
             .limit(limit)
         )
+        if user_id:
+            q = q.where(Conversation.user_id == user_id)
+        else:
+            q = q.where(Conversation.user_id.is_(None))
+        result = await self.db.execute(q)
         return list(result.scalars().all())
 
     async def delete(self, conversation_id: str) -> bool:
