@@ -9,6 +9,14 @@
   const docTextEl   = document.getElementById('doc-text');
   const charCountEl = document.getElementById('doc-char-count');
 
+  // File upload elements
+  const fileInput    = document.getElementById('file-input');
+  const uploadBtn    = document.getElementById('upload-btn');
+  const fileBadge    = document.getElementById('file-badge');
+  const fileNameEl   = document.getElementById('file-name');
+  const removeFileEl = document.getElementById('remove-file');
+  const uploadError  = document.getElementById('upload-error');
+
   let conversationId = null;
   let isLoading = false;
 
@@ -28,6 +36,8 @@
   // ── Doc text char counter ───────────────────────────────────────
   docTextEl.addEventListener('input', () => {
     charCountEl.textContent = docTextEl.value.length;
+    // Clear file badge if user manually edits
+    if (docTextEl.value === '') clearFile();
   });
 
   // ── Auto-resize textarea ────────────────────────────────────────
@@ -46,6 +56,72 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(inputEl.value); }
   });
   sendBtn.addEventListener('click', () => send(inputEl.value));
+
+  // ── File upload ─────────────────────────────────────────────────
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    fileInput.value = '';   // reset so same file can be re-selected
+
+    setUploadError('');
+    setUploadLoading(true);
+
+    const form = new FormData();
+    form.append('file', file);
+
+    try {
+      const res  = await fetch('/api/v1/upload/', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setUploadError(data.detail || 'Upload failed.');
+        return;
+      }
+
+      docTextEl.value        = data.text;
+      charCountEl.textContent = data.text.length;
+      fileNameEl.textContent  = data.filename;
+      fileBadge.classList.remove('hidden');
+
+      if (data.truncated) {
+        setUploadError(`File truncated to 5,000 characters (original: ${data.chars.toLocaleString()} chars).`);
+      }
+    } catch (err) {
+      setUploadError(`Upload error: ${err.message}`);
+    } finally {
+      setUploadLoading(false);
+    }
+  });
+
+  removeFileEl.addEventListener('click', clearFile);
+
+  function clearFile() {
+    docTextEl.value         = '';
+    charCountEl.textContent = '0';
+    fileBadge.classList.add('hidden');
+    fileNameEl.textContent  = '';
+    setUploadError('');
+  }
+
+  function setUploadLoading(loading) {
+    uploadBtn.disabled    = loading;
+    uploadBtn.textContent = loading ? 'Extracting…' : '';
+    if (!loading) {
+      uploadBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload file`;
+    }
+  }
+
+  function setUploadError(msg) {
+    uploadError.textContent = msg;
+    uploadError.classList.toggle('hidden', !msg);
+  }
 
   // ── Render helpers ──────────────────────────────────────────────
   function addMessage(role, content, isTyping = false) {

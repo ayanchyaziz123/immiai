@@ -96,13 +96,44 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 
 /* Doc textarea */
 .doc-textarea {
-  width: 100%; min-height: 100px; max-height: 180px;
+  width: 100%; min-height: 80px; max-height: 160px;
   padding: 10px; border-radius: var(--radius); border: 1.5px solid var(--border);
   background: var(--bg); font-size: 13px; color: var(--text);
-  resize: vertical; outline: none; font-family: inherit;
+  resize: vertical; outline: none; font-family: inherit; margin-top: 6px;
 }
 .doc-textarea:focus { border-color: var(--blue); }
 .char-count { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 3px; }
+
+/* File upload */
+.upload-btn {
+  width: 100%; padding: 8px 12px; border-radius: var(--radius);
+  border: 1.5px dashed var(--border); background: var(--bg);
+  font-size: 12px; font-weight: 500; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all .15s; margin-bottom: 6px;
+}
+.upload-btn:hover:not(:disabled) {
+  border-color: var(--blue); color: var(--blue); background: var(--blue-light);
+}
+.upload-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.file-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--blue-light); border: 1px solid #93C5FD;
+  border-radius: var(--radius); padding: 5px 10px;
+  font-size: 12px; color: var(--blue); margin-bottom: 6px;
+  overflow: hidden;
+}
+.file-badge span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.remove-file {
+  flex-shrink: 0; color: var(--blue); font-size: 13px; line-height: 1;
+  padding: 0 2px; opacity: .7;
+}
+.remove-file:hover { opacity: 1; }
+
+.upload-error {
+  font-size: 11px; color: var(--amber); margin-bottom: 4px; line-height: 1.4;
+}
 
 /* Quick buttons */
 .quick-list { display: flex; flex-direction: column; gap: 6px; }

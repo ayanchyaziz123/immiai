@@ -25,16 +25,33 @@
     </section>
 
     <section class="sidebar-section">
-      <h3 class="sidebar-label">Paste USCIS Document <span class="optional">optional</span></h3>
+      <h3 class="sidebar-label">USCIS Document <span class="optional">optional</span></h3>
       <select class="select-input" id="doc-type-select" style="margin-bottom:8px">
         {% for dt in doc_types %}
         <option value="{{ dt }}">{{ dt }}</option>
         {% endfor %}
       </select>
+
+      <!-- File upload -->
+      <input type="file" id="file-input" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" class="hidden">
+      <button class="upload-btn" id="upload-btn" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload file
+      </button>
+      <div class="file-badge hidden" id="file-badge">
+        <span id="file-name"></span>
+        <button class="remove-file" id="remove-file" title="Remove file">✕</button>
+      </div>
+      <div class="upload-error hidden" id="upload-error"></div>
+
+      <!-- Paste fallback -->
       <textarea
         id="doc-text"
         class="doc-textarea"
-        placeholder="Paste your RFE, denial letter, or any USCIS document text here for a context-aware answer…"
+        placeholder="…or paste your RFE, denial letter, or any USCIS document text here"
         maxlength="5000"
       ></textarea>
       <div class="char-count"><span id="doc-char-count">0</span> / 5000</div>
