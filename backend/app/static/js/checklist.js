@@ -23,7 +23,7 @@
         });
         const data = await res.json();
 
-        titleEl.textContent   = data.visa_type;
+        titleEl.textContent = data.visa_type;
         const required = data.items.filter(i => i.required).length;
         summaryEl.textContent = `${required} required · ${data.items.length - required} optional`;
 
@@ -32,11 +32,16 @@
           const li = document.createElement('li');
           li.className = 'checklist-item';
           li.innerHTML = `
-            <span class="item-badge ${item.required ? 'badge-required' : 'badge-optional'}">
-              ${item.required ? 'Required' : 'Optional'}
-            </span>
-            <div>
-              <div class="item-text">${item.item}</div>
+            <div class="item-icon ${item.required ? 'icon-required' : 'icon-optional'}">
+              ${item.required ? '✓' : '○'}
+            </div>
+            <div class="item-body">
+              <div class="item-text">
+                ${item.item}
+                <span class="item-badge ${item.required ? 'badge-required' : 'badge-optional'}">
+                  ${item.required ? 'Required' : 'Optional'}
+                </span>
+              </div>
               ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
             </div>`;
           itemsEl.appendChild(li);
@@ -47,7 +52,8 @@
       } catch {
         loadingEl.classList.add('hidden');
         emptyEl.classList.remove('hidden');
-        emptyEl.querySelector('p').textContent = 'Failed to load checklist. Is the API running?';
+        const p = emptyEl.querySelector('p');
+        if (p) p.textContent = 'Failed to load checklist. Is the API running?';
       }
     });
   });

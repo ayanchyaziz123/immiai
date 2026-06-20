@@ -4,21 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Immigration AI{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/app.css" />
   {% block head %}{% endblock %}
 </head>
 <body>
   <nav class="navbar">
     <a href="/" class="brand">
-      <span class="brand-icon">🛡️</span>
-      <span class="brand-name">Immigration AI</span>
+      <div class="brand-logo">🛡️</div>
+      <span>Immigration AI</span>
     </a>
     <div class="nav-links">
       <a href="/"          class="nav-link {% if active == 'chat'      %}active{% endif %}">AI Assistant</a>
       <a href="/checklist" class="nav-link {% if active == 'checklist' %}active{% endif %}">Checklist</a>
       <a href="/tracker"   class="nav-link {% if active == 'tracker'   %}active{% endif %}">Case Tracker</a>
     </div>
-    <div id="status-badge" class="status-badge status-loading">Connecting…</div>
+    <div class="nav-right">
+      <div id="status-badge" class="status-pill">
+        <span class="status-dot"></span>
+        <span id="status-text">Connecting…</span>
+      </div>
+    </div>
   </nav>
 
   <main class="main-content">
@@ -26,22 +34,21 @@
   </main>
 
   <script>
-    // Poll health endpoint and update status badge
     async function checkHealth() {
+      const badge = document.getElementById('status-badge');
+      const text  = document.getElementById('status-text');
       try {
-        const r = await fetch('/health');
-        const d = await r.json();
-        const badge = document.getElementById('status-badge');
+        const d = await (await fetch('/health')).json();
         if (d.rag_ready) {
-          badge.textContent = `RAG ready · ${d.rag_docs} docs`;
-          badge.className = 'status-badge status-ready';
+          badge.className = 'status-pill ready';
+          text.textContent = `AI ready · ${d.rag_docs} docs`;
         } else {
-          badge.textContent = 'Keyword search mode';
-          badge.className = 'status-badge status-warn';
+          badge.className = 'status-pill warn';
+          text.textContent = 'Search mode';
         }
       } catch {
-        document.getElementById('status-badge').className = 'status-badge status-error';
-        document.getElementById('status-badge').textContent = 'API offline';
+        badge.className = 'status-pill error';
+        text.textContent = 'Offline';
       }
     }
     checkHealth();

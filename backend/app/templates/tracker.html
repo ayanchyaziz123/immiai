@@ -2,14 +2,15 @@
 {% block title %}Case Tracker — Immigration AI{% endblock %}
 
 {% block content %}
-<div class="page-header">
+
+<div class="page-hero">
   <h1>Case Tracker</h1>
-  <p>Check your USCIS case status and processing times.</p>
+  <p>Check your USCIS case status and estimated processing times.</p>
 </div>
 
 <div class="tracker-layout">
 
-  <!-- Receipt number card -->
+  <!-- Receipt lookup -->
   <div class="card">
     <h2 class="card-title">Check Case Status</h2>
     <p class="card-sub">Enter your receipt number from your I-797 Notice of Action</p>
@@ -21,46 +22,62 @@
         placeholder="e.g. EAC1234567890"
         maxlength="13"
         autocomplete="off"
+        spellcheck="false"
       />
-      <button class="check-btn" id="check-btn">Check on USCIS ↗</button>
+      <button class="check-btn" id="check-btn">
+        Check on USCIS
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </button>
     </div>
     <p id="receipt-error" class="field-error hidden"></p>
     <p class="external-note">Opens the official USCIS website in a new tab.</p>
   </div>
 
-  <!-- Processing times card -->
+  <!-- Processing times -->
   <div class="card">
     <div class="card-title-row">
       <h2 class="card-title">Typical Processing Times</h2>
-      <a href="https://egov.uscis.gov/processing-times/" target="_blank" class="link-btn">Live times ↗</a>
+      <a href="https://egov.uscis.gov/processing-times/" target="_blank" class="link-btn">
+        Live times ↗
+      </a>
     </div>
-    <table class="pt-table">
-      <thead><tr><th>Form</th><th>Typical Time</th></tr></thead>
-      <tbody>
-        {% for row in processing_times %}
-        <tr><td>{{ row.form }}</td><td class="pt-time">{{ row.typical }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p class="table-note">Processing times vary by service center. Always check the USCIS website for current estimates.</p>
+    <div class="pt-grid">
+      {% for row in processing_times %}
+      <div class="pt-item">
+        <div class="pt-form">{{ row.form }}</div>
+        <div class="pt-time">{{ row.typical }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="table-note">Processing times vary by service center. Check the USCIS website for the most current estimates.</p>
   </div>
 
-  <!-- Tips card -->
+  <!-- Tips -->
   <div class="card">
-    <h2 class="card-title">Tips for Tracking Your Case</h2>
+    <h2 class="card-title" style="margin-bottom:16px">Tips for Tracking Your Case</h2>
     <ul class="tips-list">
       {% for tip in tips %}
-      <li>{{ tip }}</li>
+      <li class="tip-item">
+        <div class="tip-dot">→</div>
+        <span>{{ tip }}</span>
+      </li>
       {% endfor %}
     </ul>
   </div>
 
-  <!-- Legal help card -->
-  <div class="card card-accent">
+  <!-- Legal help -->
+  <div class="card accent-card">
     <h2 class="card-title">Need Free Legal Help?</h2>
-    <p>BIA-accredited representatives offer free and low-cost immigration legal services across the US.</p>
+    <p>BIA-accredited representatives offer free and low-cost immigration legal services across the US. Don't navigate this alone.</p>
     <a href="https://www.uscis.gov/avoid-scams/find-legal-services" target="_blank" class="accent-btn">
-      Find Free Legal Services ↗
+      Find Free Legal Services
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
     </a>
   </div>
 

@@ -2,42 +2,51 @@
 {% block title %}Document Checklist — Immigration AI{% endblock %}
 
 {% block content %}
-<div class="page-header">
+
+<div class="page-hero">
   <h1>Document Checklist</h1>
-  <p>Select your visa type to get a personalized document checklist.</p>
+  <p>Select your visa type to see exactly what documents you need to prepare.</p>
 </div>
 
 <div class="checklist-layout">
+
+  <!-- Visa type grid -->
   <div class="visa-grid">
     {% for v in visa_types %}
     <button class="visa-card" data-visa="{{ v.key }}">
-      <span class="visa-icon">{{ v.icon }}</span>
+      <div class="visa-icon-wrap">{{ v.icon }}</div>
       <span class="visa-label">{{ v.label }}</span>
     </button>
     {% endfor %}
   </div>
 
+  <!-- Results -->
   <div id="checklist-result" class="checklist-result hidden">
     <div class="checklist-header">
       <h2 id="checklist-title"></h2>
-      <span id="checklist-summary" class="checklist-summary"></span>
+      <span id="checklist-summary" class="checklist-badge"></span>
     </div>
     <ul class="checklist-items" id="checklist-items"></ul>
-    <div class="disclaimer-box">
-      ℹ️ This checklist is for general guidance only. Requirements vary by individual circumstances.
-      Always consult a licensed immigration attorney for advice specific to your case.
+    <div class="info-banner">
+      <span style="font-size:18px">ℹ️</span>
+      <span>This checklist is for general guidance only. Requirements vary by individual circumstances.
+      Always verify at <a href="https://www.uscis.gov" target="_blank">uscis.gov</a> and consult a licensed immigration attorney.</span>
     </div>
   </div>
 
-  <div id="checklist-loading" class="loading-state hidden">
+  <!-- Loading -->
+  <div id="checklist-loading" class="loading-panel hidden">
     <div class="spinner"></div>
-    <p>Loading checklist…</p>
+    <p style="font-size:14px;color:var(--text-muted)">Loading checklist…</p>
   </div>
 
-  <div id="checklist-empty" class="empty-state">
-    <div class="empty-icon">📄</div>
-    <p>Select a visa type above to see your document checklist.</p>
+  <!-- Empty -->
+  <div id="checklist-empty" class="empty-panel">
+    <div class="empty-panel-icon">📋</div>
+    <p style="font-size:14px;font-weight:600;color:var(--text)">Select a visa type above</p>
+    <p style="font-size:13px">We'll show you the exact documents you need to prepare.</p>
   </div>
+
 </div>
 {% endblock %}
 

@@ -4,77 +4,102 @@
 {% block content %}
 <div class="chat-layout">
 
-  <!-- Sidebar: options -->
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
   <aside class="sidebar">
-    <section class="sidebar-section">
-      <h3 class="sidebar-label">Visa Type</h3>
+
+    <div class="sidebar-header">
+      <p class="sidebar-header-title">Context</p>
+    </div>
+
+    <!-- Visa type -->
+    <div class="sidebar-section">
+      <p class="sidebar-label">Visa Type</p>
       <div class="chip-group" id="visa-chips">
         {% for v in visa_types %}
         <button class="chip {% if loop.first %}chip-active{% endif %}" data-value="{{ v }}">{{ v }}</button>
         {% endfor %}
       </div>
-    </section>
+    </div>
 
-    <section class="sidebar-section">
-      <h3 class="sidebar-label">Language</h3>
+    <!-- Language -->
+    <div class="sidebar-section">
+      <p class="sidebar-label">Language</p>
       <select class="select-input" id="language-select">
         {% for lang in languages %}
         <option value="{{ lang.code }}">{{ lang.label }}</option>
         {% endfor %}
       </select>
-    </section>
+    </div>
 
-    <section class="sidebar-section">
-      <h3 class="sidebar-label">USCIS Document <span class="optional">optional</span></h3>
-      <select class="select-input" id="doc-type-select" style="margin-bottom:8px">
+    <!-- Document upload -->
+    <div class="sidebar-section">
+      <p class="sidebar-label">
+        USCIS Document
+        <span class="optional-tag">optional</span>
+      </p>
+      <select class="select-input" id="doc-type-select" style="margin-bottom:10px">
         {% for dt in doc_types %}
         <option value="{{ dt }}">{{ dt }}</option>
         {% endfor %}
       </select>
 
-      <!-- File upload -->
+      <!-- Drop zone -->
       <input type="file" id="file-input" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" class="hidden">
-      <button class="upload-btn" id="upload-btn" type="button">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        Upload file
-      </button>
-      <div class="file-badge hidden" id="file-badge">
-        <span id="file-name"></span>
-        <button class="remove-file" id="remove-file" title="Remove file">✕</button>
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-zone-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <p>Click or drop a file</p>
+        <span>PDF, DOCX, TXT, PNG, JPG · max 10 MB</span>
       </div>
+
+      <div class="file-badge hidden" id="file-badge">
+        <svg class="file-badge-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <span class="file-badge-name" id="file-name"></span>
+        <button class="remove-file" id="remove-file" title="Remove">✕</button>
+      </div>
+
       <div class="upload-error hidden" id="upload-error"></div>
 
-      <!-- Paste fallback -->
       <textarea
         id="doc-text"
         class="doc-textarea"
-        placeholder="…or paste your RFE, denial letter, or any USCIS document text here"
+        placeholder="…or paste document text here"
         maxlength="5000"
       ></textarea>
       <div class="char-count"><span id="doc-char-count">0</span> / 5000</div>
-    </section>
+    </div>
 
-    <section class="sidebar-section">
-      <h3 class="sidebar-label">Quick Questions</h3>
+    <!-- Quick questions -->
+    <div class="sidebar-section">
+      <p class="sidebar-label">Quick Questions</p>
       <div class="quick-list">
         {% for q in quick_questions %}
         <button class="quick-btn" data-question="{{ q }}">{{ q }}</button>
         {% endfor %}
       </div>
-    </section>
+    </div>
+
   </aside>
 
-  <!-- Chat area -->
+  <!-- ── Chat area ───────────────────────────────────────────── -->
   <div class="chat-area">
     <div class="messages" id="messages">
       <div class="empty-state" id="empty-state">
-        <div class="empty-icon">🛡️</div>
+        <div class="empty-hero">🛡️</div>
         <h2>Immigration AI Assistant</h2>
-        <p>Ask me anything about US visas, green cards, citizenship, and more.<br>
-           Select your visa type on the left for more accurate answers.</p>
+        <p>Get clear, reliable answers about US visas, green cards, asylum, citizenship, and more. Select your visa type for accurate answers.</p>
+        <div class="empty-chips">
+          {% for q in quick_questions[:3] %}
+          <button class="empty-chip quick-btn" data-question="{{ q }}">{{ q }}</button>
+          {% endfor %}
+        </div>
       </div>
     </div>
 
@@ -87,13 +112,15 @@
         maxlength="2000"
       ></textarea>
       <button class="send-btn" id="send-btn" title="Send">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
     </div>
-    <p class="disclaimer">For general information only. Always consult a licensed immigration attorney for advice specific to your case.</p>
+    <p class="disclaimer">General information only · Always consult a licensed immigration attorney for advice specific to your situation</p>
   </div>
+
 </div>
 {% endblock %}
 

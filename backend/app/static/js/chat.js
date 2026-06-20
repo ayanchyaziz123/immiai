@@ -9,18 +9,18 @@
   const docTextEl   = document.getElementById('doc-text');
   const charCountEl = document.getElementById('doc-char-count');
 
-  // File upload elements
+  // Upload elements
+  const uploadZone   = document.getElementById('upload-zone');
   const fileInput    = document.getElementById('file-input');
-  const uploadBtn    = document.getElementById('upload-btn');
   const fileBadge    = document.getElementById('file-badge');
   const fileNameEl   = document.getElementById('file-name');
   const removeFileEl = document.getElementById('remove-file');
   const uploadError  = document.getElementById('upload-error');
 
   let conversationId = null;
-  let isLoading = false;
+  let isLoading      = false;
 
-  // ── Chip selection ──────────────────────────────────────────────
+  // ── Visa chips ──────────────────────────────────────────────────
   visaChips.forEach(chip => {
     chip.addEventListener('click', () => {
       visaChips.forEach(c => c.classList.remove('chip-active'));
@@ -33,38 +33,53 @@
     return active ? active.dataset.value : 'Any';
   }
 
-  // ── Doc text char counter ───────────────────────────────────────
+  // ── Doc textarea char count ─────────────────────────────────────
   docTextEl.addEventListener('input', () => {
     charCountEl.textContent = docTextEl.value.length;
-    // Clear file badge if user manually edits
-    if (docTextEl.value === '') clearFile();
+    if (!docTextEl.value) clearFile();
   });
 
-  // ── Auto-resize textarea ────────────────────────────────────────
+  // ── Auto-resize question input ──────────────────────────────────
   inputEl.addEventListener('input', () => {
     inputEl.style.height = 'auto';
     inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
   });
 
-  // ── Quick question buttons ──────────────────────────────────────
+  // ── Quick question buttons (sidebar + empty state) ──────────────
   document.querySelectorAll('.quick-btn').forEach(btn => {
     btn.addEventListener('click', () => send(btn.dataset.question));
   });
 
-  // ── Send on Enter (Shift+Enter = newline) ───────────────────────
+  // ── Send on Enter ───────────────────────────────────────────────
   inputEl.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(inputEl.value); }
   });
   sendBtn.addEventListener('click', () => send(inputEl.value));
 
-  // ── File upload ─────────────────────────────────────────────────
-  uploadBtn.addEventListener('click', () => fileInput.click());
+  // ── File upload (click) ─────────────────────────────────────────
+  uploadZone.addEventListener('click', () => fileInput.click());
 
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    fileInput.value = '';   // reset so same file can be re-selected
+  // Drag and drop
+  uploadZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
 
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    fileInput.value = '';
+  });
+
+  removeFileEl.addEventListener('click', clearFile);
+
+  async function handleFile(file) {
     setUploadError('');
     setUploadLoading(true);
 
@@ -75,47 +90,36 @@
       const res  = await fetch('/api/v1/upload/', { method: 'POST', body: form });
       const data = await res.json();
 
-      if (!res.ok) {
-        setUploadError(data.detail || 'Upload failed.');
-        return;
-      }
+      if (!res.ok) { setUploadError(data.detail || 'Upload failed.'); return; }
 
-      docTextEl.value        = data.text;
+      docTextEl.value         = data.text;
       charCountEl.textContent = data.text.length;
       fileNameEl.textContent  = data.filename;
       fileBadge.classList.remove('hidden');
+      uploadZone.classList.add('hidden');
 
       if (data.truncated) {
-        setUploadError(`File truncated to 5,000 characters (original: ${data.chars.toLocaleString()} chars).`);
+        setUploadError(`Truncated to 5,000 chars (file had ${data.chars.toLocaleString()}).`);
       }
     } catch (err) {
       setUploadError(`Upload error: ${err.message}`);
     } finally {
       setUploadLoading(false);
     }
-  });
-
-  removeFileEl.addEventListener('click', clearFile);
+  }
 
   function clearFile() {
     docTextEl.value         = '';
     charCountEl.textContent = '0';
     fileBadge.classList.add('hidden');
+    uploadZone.classList.remove('hidden');
     fileNameEl.textContent  = '';
     setUploadError('');
   }
 
-  function setUploadLoading(loading) {
-    uploadBtn.disabled    = loading;
-    uploadBtn.textContent = loading ? 'Extracting…' : '';
-    if (!loading) {
-      uploadBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        Upload file`;
-    }
+  function setUploadLoading(on) {
+    uploadZone.style.pointerEvents = on ? 'none' : '';
+    uploadZone.querySelector('p').textContent = on ? 'Extracting text…' : 'Click or drop a file';
   }
 
   function setUploadError(msg) {
@@ -123,17 +127,17 @@
     uploadError.classList.toggle('hidden', !msg);
   }
 
-  // ── Render helpers ──────────────────────────────────────────────
+  // ── Message rendering ───────────────────────────────────────────
   function addMessage(role, content, isTyping = false) {
     emptyState?.remove();
 
     const wrap = document.createElement('div');
     wrap.className = `message ${role}`;
-    wrap.id = isTyping ? 'typing-msg' : '';
+    if (isTyping) wrap.id = 'typing-msg';
 
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
-    avatar.textContent = role === 'user' ? 'You' : 'AI';
+    avatar.textContent = role === 'user' ? 'You' : '✦';
 
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
@@ -179,7 +183,7 @@
     sendBtn.disabled = true;
 
     addMessage('user', question);
-    addMessage('assistant', '', true);   // typing indicator
+    addMessage('assistant', '', true);
 
     try {
       const res = await fetch('/api/v1/chat/', {
