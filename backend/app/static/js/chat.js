@@ -1,6 +1,5 @@
 (() => {
   const messagesEl  = document.getElementById('messages');
-  const emptyState  = document.getElementById('empty-state');
   const inputEl     = document.getElementById('question-input');
   const sendBtn     = document.getElementById('send-btn');
   const visaChips   = document.querySelectorAll('#visa-chips .chip');
@@ -9,7 +8,6 @@
   const docTextEl   = document.getElementById('doc-text');
   const charCountEl = document.getElementById('doc-char-count');
 
-  // Upload elements
   const uploadZone   = document.getElementById('upload-zone');
   const fileInput    = document.getElementById('file-input');
   const fileBadge    = document.getElementById('file-badge');
@@ -17,15 +15,14 @@
   const removeFileEl = document.getElementById('remove-file');
   const uploadError  = document.getElementById('upload-error');
 
-  // History elements
   const historySection = document.getElementById('history-section');
   const historyList    = document.getElementById('history-list');
   const newChatBtn     = document.getElementById('new-chat-btn');
   const guestNudge     = document.getElementById('guest-nudge');
 
-  let conversationId = null;
-  let isLoading      = false;
-  let activeHistoryItem = null;
+  let conversationId  = null;
+  let isLoading       = false;
+  let isAuthenticated = false;
 
   // ── Visa chips ──────────────────────────────────────────────────
   visaChips.forEach(chip => {
@@ -35,8 +32,7 @@
     });
   });
   function getVisaType() {
-    const active = document.querySelector('#visa-chips .chip-active');
-    return active ? active.dataset.value : 'Any';
+    return document.querySelector('#visa-chips .chip-active')?.dataset.value ?? 'Any';
   }
 
   // ── Doc textarea ────────────────────────────────────────────────
@@ -55,7 +51,6 @@
   document.querySelectorAll('.quick-btn').forEach(btn => {
     btn.addEventListener('click', () => send(btn.dataset.question));
   });
-
   inputEl.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(inputEl.value); }
   });
@@ -63,13 +58,16 @@
 
   // ── File upload ─────────────────────────────────────────────────
   uploadZone.addEventListener('click', () => fileInput.click());
-  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
   uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
   uploadZone.addEventListener('drop', e => {
     e.preventDefault(); uploadZone.classList.remove('drag-over');
     if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
   });
-  fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); fileInput.value = ''; });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    fileInput.value = '';
+  });
   removeFileEl.addEventListener('click', clearFile);
 
   async function handleFile(file) {
@@ -98,10 +96,10 @@
   }
   function setUploadError(msg) { uploadError.textContent = msg; uploadError.classList.toggle('hidden', !msg); }
 
-  // ── Auth-driven sidebar state ───────────────────────────────────
+  // ── Auth events ─────────────────────────────────────────────────
   document.addEventListener('auth:ready', e => {
-    const user = e.detail;
-    if (user) {
+    isAuthenticated = !!e.detail;
+    if (isAuthenticated) {
       historySection.classList.remove('hidden');
       guestNudge.classList.add('hidden');
       loadHistory();
@@ -112,12 +110,14 @@
   });
 
   document.addEventListener('auth:login', () => {
+    isAuthenticated = true;
     historySection.classList.remove('hidden');
     guestNudge.classList.add('hidden');
     loadHistory();
   });
 
   document.addEventListener('auth:signout', () => {
+    isAuthenticated = false;
     historySection.classList.add('hidden');
     guestNudge.classList.remove('hidden');
     historyList.innerHTML = '<p class="history-empty">No conversations yet.</p>';
@@ -126,10 +126,9 @@
   // ── Conversation history ────────────────────────────────────────
   async function loadHistory() {
     try {
-      const res  = await fetch('/api/v1/chat/conversations');
+      const res = await fetch('/api/v1/chat/conversations');
       if (!res.ok) return;
-      const convos = await res.json();
-      renderHistory(convos);
+      renderHistory(await res.json());
     } catch {}
   }
 
@@ -139,41 +138,57 @@
       historyList.innerHTML = '<p class="history-empty">No conversations yet.</p>';
       return;
     }
-    convos.forEach(c => {
-      const btn = document.createElement('button');
-      btn.className = 'history-item' + (c.id === conversationId ? ' active' : '');
-      btn.textContent = c.title || 'Untitled';
-      btn.title = c.title || '';
-      btn.addEventListener('click', () => loadConversation(c.id, btn));
-      historyList.appendChild(btn);
+    convos.forEach(c => historyList.appendChild(makeHistoryBtn(c.id, c.title || 'Untitled')));
+  }
+
+  function makeHistoryBtn(id, title) {
+    const btn = document.createElement('button');
+    btn.className   = 'history-item' + (id === conversationId ? ' active' : '');
+    btn.textContent = title;
+    btn.title       = title;
+    btn.dataset.convId = id;
+    btn.addEventListener('click', () => loadConversation(id, btn));
+    return btn;
+  }
+
+  // Prepend a newly created conversation to the sidebar (no round-trip)
+  function prependHistory(id, title) {
+    if (!isAuthenticated) return;
+    historyList.querySelector('.history-empty')?.remove();
+    document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+    const btn = makeHistoryBtn(id, title);
+    btn.classList.add('active');
+    historyList.prepend(btn);
+  }
+
+  // Mark a conversation as active in the sidebar (no fetch)
+  function setActiveHistory(id) {
+    document.querySelectorAll('.history-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.convId === id);
     });
   }
 
   async function loadConversation(id, btn) {
     if (isLoading) return;
     try {
-      const res  = await fetch(`/api/v1/chat/conversations/${id}`);
+      const res = await fetch(`/api/v1/chat/conversations/${id}`);
       if (!res.ok) return;
       const convo = await res.json();
 
-      // Update active state
       document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
-      if (btn) btn.classList.add('active');
+      btn?.classList.add('active');
 
-      // Clear chat and render history
       messagesEl.innerHTML = '';
-      emptyState?.remove();
+      document.getElementById('empty-state')?.remove();
       conversationId = id;
-
-      convo.messages.forEach(msg => {
-        addMessage(msg.role, msg.content);
-      });
+      convo.messages.forEach(msg => addMessage(msg.role, msg.content));
     } catch {}
   }
 
   newChatBtn?.addEventListener('click', () => {
     conversationId = null;
     messagesEl.innerHTML = '';
+    document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
     const empty = document.createElement('div');
     empty.className = 'empty-state'; empty.id = 'empty-state';
     empty.innerHTML = `
@@ -181,7 +196,6 @@
       <h2>Immigration AI Assistant</h2>
       <p>Ask me anything about US visas, green cards, asylum, citizenship, and more.</p>`;
     messagesEl.appendChild(empty);
-    document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
     inputEl.focus();
   });
 
@@ -189,13 +203,13 @@
   function addMessage(role, content, isTyping = false) {
     document.getElementById('empty-state')?.remove();
 
-    const wrap = document.createElement('div');
+    const wrap   = document.createElement('div');
     wrap.className = `message ${role}`;
     if (isTyping) wrap.id = 'typing-msg';
 
     const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.textContent = role === 'user' ? 'You' : '✦';
+    avatar.className    = 'avatar';
+    avatar.textContent  = role === 'user' ? 'You' : '✦';
 
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
@@ -220,7 +234,8 @@
     bubble.textContent = text;
     if (modelVersion) {
       const tag = document.createElement('div');
-      tag.className = 'model-tag'; tag.textContent = modelVersion;
+      tag.className   = 'model-tag';
+      tag.textContent = modelVersion;
       bubble.appendChild(tag);
     }
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -234,6 +249,8 @@
     isLoading = true;
     inputEl.value = ''; inputEl.style.height = 'auto';
     sendBtn.disabled = true;
+
+    const wasNew = !conversationId;  // track before the call
 
     addMessage('user', question);
     addMessage('assistant', '', true);
@@ -258,8 +275,13 @@
       conversationId = data.conversation_id;
       setTypingContent(data.answer, data.model_version);
 
-      // Refresh history list after first message in new conversation
-      loadHistory();
+      // Update sidebar without a network round-trip:
+      // new conversation → prepend; existing → just highlight it
+      if (wasNew) {
+        prependHistory(conversationId, question.slice(0, 60));
+      } else {
+        setActiveHistory(conversationId);
+      }
     } catch (err) {
       setTypingContent(`Sorry, something went wrong: ${err.message}`, null);
     } finally {

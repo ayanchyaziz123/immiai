@@ -1,12 +1,3 @@
-"""
-Chat service — all AI answer logic lives here.
-
-Priority chain:
-  1. LoRA model + RAG context  (best quality)
-  2. RAG-only retrieval         (returns best matched answer directly)
-  3. Keyword search fallback    (works without any ML)
-"""
-
 import json
 import logging
 import re
@@ -15,14 +6,18 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_JSONL_CACHE: list[dict] | None = None
 _JSONL_PATH = Path(__file__).parent.parent.parent / "data" / "immigration_qa.jsonl"
-_WORD_RE = re.compile(r"\b\w{3,}\b")
-_JSONL_LOCK = threading.Lock()
+_WORD_RE    = re.compile(r"\b\w{3,}\b")
+_LOAD_LOCK  = threading.Lock()
 
-# Simple LRU-style answer cache: skips document_text (unique per user)
-_ANSWER_CACHE: dict[tuple, tuple[str, str]] = {}
-_ANSWER_CACHE_LOCK = threading.Lock()
+# Populated once at first keyword search; never mutated afterwards.
+_KW_ANSWERS: list[str]             = []   # answer text, indexed by doc position
+_KW_INDEX:   dict[str, list[int]]  = {}   # word → [doc_idx, ...]
+_KW_READY = False
+
+# LRU-style answer cache (keyed without document_text — that's per-user)
+_ANSWER_CACHE:      dict[tuple, tuple[str, str]] = {}
+_ANSWER_CACHE_LOCK: threading.Lock               = threading.Lock()
 
 
 def _cache_max() -> int:
@@ -33,47 +28,37 @@ def _cache_max() -> int:
         return 256
 
 
-def _load_qa_cache() -> list[dict]:
-    global _JSONL_CACHE
-    if _JSONL_CACHE is not None:
-        return _JSONL_CACHE
-    with _JSONL_LOCK:
-        # Re-check inside lock — another thread may have populated it
-        if _JSONL_CACHE is None:
-            rows: list[dict] = []
-            if _JSONL_PATH.exists():
-                with open(_JSONL_PATH) as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            rows.append(json.loads(line))
-            _JSONL_CACHE = rows
-    return _JSONL_CACHE
+def _build_keyword_index() -> None:
+    global _KW_ANSWERS, _KW_INDEX, _KW_READY
+    if _KW_READY:
+        return
+    with _LOAD_LOCK:
+        if _KW_READY:
+            return
+        answers: list[str]            = []
+        index:   dict[str, list[int]] = {}
+        if _JSONL_PATH.exists():
+            with open(_JSONL_PATH) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    r = json.loads(line)
+                    q_text = r.get("user_message") or r.get("input", "")
+                    a_text = r.get("assistant_response") or r.get("output", "")
+                    if not q_text:
+                        continue
+                    pos = len(answers)
+                    answers.append(a_text)
+                    for word in set(_WORD_RE.findall(q_text.lower())):
+                        index.setdefault(word, []).append(pos)
+        _KW_ANSWERS = answers
+        _KW_INDEX   = index
+        _KW_READY   = True
+        logger.info(f"Keyword index built: {len(answers)} docs, {len(index)} unique words")
 
 
-def _keyword_search(question: str) -> str:
-    qa = _load_qa_cache()
-    if not qa:
-        return (
-            "I'm sorry, I don't have an answer for that right now. "
-            "Please consult an immigration attorney for advice specific to your situation."
-        )
-
-    q_words = set(_WORD_RE.findall(question.lower()))
-    best_score, best_answer = 0, None
-
-    for item in qa:
-        question_text = item.get("user_message") or item.get("input", "")
-        answer_text   = item.get("assistant_response") or item.get("output", "")
-        item_words = set(_WORD_RE.findall(question_text.lower()))
-        score = len(q_words & item_words)
-        if score > best_score:
-            best_score = score
-            best_answer = answer_text
-
-    if best_score >= 2 and best_answer:
-        return best_answer
-
+def _default_fallback() -> str:
     return (
         "I'm not sure about that specific question. Here are some tips:\n\n"
         "• Visit uscis.gov for official information\n"
@@ -81,6 +66,29 @@ def _keyword_search(question: str) -> str:
         "• Find free legal help at uscis.gov/avoid-scams/find-legal-services\n\n"
         "For personalised advice, always consult a licensed immigration attorney."
     )
+
+
+def _keyword_search(question: str) -> str:
+    _build_keyword_index()
+    if not _KW_INDEX:
+        return (
+            "I'm sorry, I don't have an answer for that right now. "
+            "Please consult an immigration attorney for advice specific to your situation."
+        )
+
+    q_words = set(_WORD_RE.findall(question.lower()))
+    scores:  dict[int, int] = {}
+    for word in q_words:
+        for idx in _KW_INDEX.get(word, []):
+            scores[idx] = scores.get(idx, 0) + 1
+
+    if not scores:
+        return _default_fallback()
+
+    best_idx   = max(scores, key=scores.__getitem__)
+    best_score = scores[best_idx]
+
+    return _KW_ANSWERS[best_idx] if best_score >= 2 else _default_fallback()
 
 
 class ChatService:
@@ -93,8 +101,7 @@ class ChatService:
         category: str      = "General",
         document_text: str = "",
     ) -> tuple[str, str]:
-        """Returns (answer, model_version)."""
-        # Cache key excludes document_text — it's user-specific and shouldn't be cached
+        """Returns (answer, model_version). Caches results when no document_text."""
         cache_key: tuple | None = None
         if not document_text:
             cache_key = (question.strip().lower(), language, visa_type, document_type, category)
@@ -122,7 +129,7 @@ class ChatService:
         category: str,
         document_text: str,
     ) -> tuple[str, str]:
-        from ...ml.rag import get_rag_service
+        from ...ml.rag       import get_rag_service
         from ...ml.inference import get_inference_service
 
         rag = get_rag_service()
@@ -138,15 +145,22 @@ class ChatService:
 
         svc = get_inference_service()
         if svc is not None:
-            answer = svc.generate(
-                question      = question,
-                document_text = document_text,
-                visa_type     = visa_type,
-                document_type = document_type,
-                category      = category,
-                language      = language,
-                retrieved     = retrieved,
-            )
+            # Build the prompt here — avoids a second get_rag_service() call inside generate()
+            if retrieved and rag:
+                prompt = rag.build_rag_prompt(
+                    user_message  = question,
+                    retrieved     = retrieved,
+                    document_text = document_text,
+                    visa_type     = visa_type,
+                    document_type = document_type,
+                    category      = category,
+                    language      = language,
+                )
+            else:
+                from ...ml.dataset import format_prompt
+                prompt = format_prompt(question, document_text, visa_type, document_type, category, language)
+
+            answer = svc.generate_from_prompt(prompt)
             return answer, "flan-t5-lora+rag" if retrieved else "flan-t5-lora"
 
         if retrieved:
