@@ -1,0 +1,81 @@
+# ── Python ───────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ──────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── Environment variables ─────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Database ──────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── ML model weights (large binary files) ────────────────────────
+backend/models/
+notebooks/models/
+*.bin
+*.safetensors
+*.onnx
+*.pt
+*.pth
+
+# ── ChromaDB vector store ─────────────────────────────────────────
+backend/chroma_db/
+chroma_db/
+
+# ── MLflow ───────────────────────────────────────────────────────
+mlruns/
+mlflow.db
+
+# ── Jupyter ───────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── HuggingFace cache ─────────────────────────────────────────────
+~/.cache/huggingface/
+
+# ── Processed dataset splits ──────────────────────────────────────
+backend/data/processed_dataset/
+backend/data/train.jsonl
+backend/data/validation.jsonl
+backend/data/test.jsonl
+
+# ── macOS ─────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo
+
+# ── Logs ─────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Coverage ─────────────────────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ── mypy / ruff ───────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/

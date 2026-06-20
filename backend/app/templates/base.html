@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Immigration AI{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="brand">
+      <span class="brand-icon">🛡️</span>
+      <span class="brand-name">Immigration AI</span>
+    </a>
+    <div class="nav-links">
+      <a href="/"          class="nav-link {% if active == 'chat'      %}active{% endif %}">AI Assistant</a>
+      <a href="/checklist" class="nav-link {% if active == 'checklist' %}active{% endif %}">Checklist</a>
+      <a href="/tracker"   class="nav-link {% if active == 'tracker'   %}active{% endif %}">Case Tracker</a>
+    </div>
+    <div id="status-badge" class="status-badge status-loading">Connecting…</div>
+  </nav>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    // Poll health endpoint and update status badge
+    async function checkHealth() {
+      try {
+        const r = await fetch('/health');
+        const d = await r.json();
+        const badge = document.getElementById('status-badge');
+        if (d.rag_ready) {
+          badge.textContent = `RAG ready · ${d.rag_docs} docs`;
+          badge.className = 'status-badge status-ready';
+        } else {
+          badge.textContent = 'Keyword search mode';
+          badge.className = 'status-badge status-warn';
+        }
+      } catch {
+        document.getElementById('status-badge').className = 'status-badge status-error';
+        document.getElementById('status-badge').textContent = 'API offline';
+      }
+    }
+    checkHealth();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

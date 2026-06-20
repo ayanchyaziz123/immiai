@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}AI Assistant — Immigration AI{% endblock %}
+
+{% block content %}
+<div class="chat-layout">
+
+  <!-- Sidebar: options -->
+  <aside class="sidebar">
+    <section class="sidebar-section">
+      <h3 class="sidebar-label">Visa Type</h3>
+      <div class="chip-group" id="visa-chips">
+        {% for v in visa_types %}
+        <button class="chip {% if loop.first %}chip-active{% endif %}" data-value="{{ v }}">{{ v }}</button>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="sidebar-section">
+      <h3 class="sidebar-label">Language</h3>
+      <select class="select-input" id="language-select">
+        {% for lang in languages %}
+        <option value="{{ lang.code }}">{{ lang.label }}</option>
+        {% endfor %}
+      </select>
+    </section>
+
+    <section class="sidebar-section">
+      <h3 class="sidebar-label">Paste USCIS Document <span class="optional">optional</span></h3>
+      <select class="select-input" id="doc-type-select" style="margin-bottom:8px">
+        {% for dt in doc_types %}
+        <option value="{{ dt }}">{{ dt }}</option>
+        {% endfor %}
+      </select>
+      <textarea
+        id="doc-text"
+        class="doc-textarea"
+        placeholder="Paste your RFE, denial letter, or any USCIS document text here for a context-aware answer…"
+        maxlength="5000"
+      ></textarea>
+      <div class="char-count"><span id="doc-char-count">0</span> / 5000</div>
+    </section>
+
+    <section class="sidebar-section">
+      <h3 class="sidebar-label">Quick Questions</h3>
+      <div class="quick-list">
+        {% for q in quick_questions %}
+        <button class="quick-btn" data-question="{{ q }}">{{ q }}</button>
+        {% endfor %}
+      </div>
+    </section>
+  </aside>
+
+  <!-- Chat area -->
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🛡️</div>
+        <h2>Immigration AI Assistant</h2>
+        <p>Ask me anything about US visas, green cards, citizenship, and more.<br>
+           Select your visa type on the left for more accurate answers.</p>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <textarea
+        id="question-input"
+        class="question-input"
+        placeholder="Ask an immigration question…"
+        rows="1"
+        maxlength="2000"
+      ></textarea>
+      <button class="send-btn" id="send-btn" title="Send">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <p class="disclaimer">For general information only. Always consult a licensed immigration attorney for advice specific to your case.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/chat.js"></script>
+{% endblock %}
