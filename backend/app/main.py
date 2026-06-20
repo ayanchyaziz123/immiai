@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .api.v1.router import api_v1_router
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(GZipMiddleware, minimum_size=500)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -97,7 +99,7 @@ def _register_health(app: FastAPI) -> None:
         from ..ml.rag import get_rag_service
 
         rag = get_rag_service()
-        rag_count = rag.collection.count() if rag else 0
+        rag_count = rag._doc_count if rag else 0
 
         return {
             "status":      "ok",

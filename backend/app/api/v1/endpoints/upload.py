@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -37,7 +38,10 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=422, detail="Uploaded file is empty.")
 
     try:
-        text, method = extract_text(content, file.filename or "", file.content_type or "")
+        # PDF parsing and OCR are CPU-bound — run in thread pool to free the event loop
+        text, method = await asyncio.to_thread(
+            extract_text, content, file.filename or "", file.content_type or ""
+        )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:

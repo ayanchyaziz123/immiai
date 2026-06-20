@@ -80,17 +80,22 @@ _FALLBACK: list[dict] = [
 ]
 
 
+# Pre-build ChecklistItem lists once at import time — static data, no reason to rebuild per request
+_BUILT: dict[str, list[ChecklistItem]] = {
+    k: [ChecklistItem(**item) for item in v]
+    for k, v in CHECKLISTS.items()
+}
+_BUILT_FALLBACK: list[ChecklistItem] = [ChecklistItem(**item) for item in _FALLBACK]
+
+
 class ChecklistService:
     def get_checklist(self, visa_type: str) -> ChecklistResponse:
         key = visa_type.lower().strip()
-        items_data = next(
-            (v for k, v in CHECKLISTS.items() if k in key or key in k),
-            _FALLBACK,
+        items = next(
+            (v for k, v in _BUILT.items() if k in key or key in k),
+            _BUILT_FALLBACK,
         )
-        return ChecklistResponse(
-            visa_type=visa_type,
-            items=[ChecklistItem(**item) for item in items_data],
-        )
+        return ChecklistResponse(visa_type=visa_type, items=items)
 
     def list_types(self) -> list[str]:
         return list(CHECKLISTS.keys())

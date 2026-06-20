@@ -1,7 +1,11 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import noload, selectinload
 
 from ..models.conversation import Conversation, Message, Role
+
+_WITH_MESSAGES  = selectinload(Conversation.messages)
+_WITHOUT_MESSAGES = noload(Conversation.messages)   # list view — metadata only
 
 
 class ConversationRepository:
@@ -10,7 +14,9 @@ class ConversationRepository:
 
     async def get_by_id(self, conversation_id: str) -> Conversation | None:
         result = await self.db.execute(
-            select(Conversation).where(Conversation.id == conversation_id)
+            select(Conversation)
+            .where(Conversation.id == conversation_id)
+            .options(_WITH_MESSAGES)
         )
         return result.scalar_one_or_none()
 
@@ -37,6 +43,7 @@ class ConversationRepository:
     async def list_recent(self, limit: int = 50) -> list[Conversation]:
         result = await self.db.execute(
             select(Conversation)
+            .options(_WITHOUT_MESSAGES)   # metadata only; callers use id to fetch messages
             .order_by(Conversation.created_at.desc())
             .limit(limit)
         )
